@@ -129,7 +129,8 @@
     <form action="/generate" method="post" enctype="multipart/form-data">
       <div class="card">
         <p><strong>Select Semester Result PDFs</strong></p>
-        <input type="file" name="pdfs" multiple required />
+        <input type="file" name="pdfs" accept=".pdf,application/pdf" multiple required>
+
         <div class="note">
           Supported format: University result PDF (text-based)
         </div>
