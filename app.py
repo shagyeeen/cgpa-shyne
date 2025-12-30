@@ -17,7 +17,7 @@ GRADE_POINTS = {
     "B+": 7, "B": 6, "C": 5, "U": 0
 }
 
-# ---------- PDF EXTRACTION ----------
+# ---------------- PDF TEXT ----------------
 
 def extract_text(pdf_path):
     text = ""
@@ -27,18 +27,18 @@ def extract_text(pdf_path):
                 text += p.extract_text() + "\n"
     return text
 
+# ---------------- STUDENT DETAILS ----------------
+
 def extract_student_details(text):
     name = "Student Name"
     reg = "Register No"
 
-    # Name extraction (cut before 'Month' or 'Date')
     name_match = re.search(
         r"Name of the Candidate\s+([A-Z ]+?)(?:\s+Month|\s+Date|\n)",
         text,
         re.IGNORECASE
     )
 
-    # Register number extraction
     reg_match = re.search(
         r"Register No\s+([A-Z0-9]+)",
         text,
@@ -53,6 +53,23 @@ def extract_student_details(text):
 
     return name, reg
 
+# ---------------- SEMESTER DETECTION ----------------
+
+def extract_semester(text):
+    # Explicit semester column
+    m = re.search(r"\bSEMESTER\s+(\d+)", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    # Fallback from subject code (23CS101 → 1, 23CS201 → 2)
+    m = re.search(r"\b\d{2}[A-Z]{2}(\d)\d{2}\b", text)
+    if m:
+        return int(m.group(1))
+
+    return None
+
+# ---------------- SUBJECT EXTRACTION ----------------
+
 def extract_subjects(text):
     pattern = r"([A-Z0-9]{5,7})\s+([A-Za-z0-9 +().,:/\-]+?)\s+(\d)\s+([OABC][+]?)"
     matches = re.findall(pattern, text)
@@ -60,23 +77,32 @@ def extract_subjects(text):
     subjects = []
     for code, name, credit, grade in matches:
         subjects.append({
-            "code": code[-5:],  # keeps AS101, CS101 etc
+            "code": code[-5:],     # AS101 / CS101 etc
             "name": name.strip(),
             "credit": int(credit),
             "grade": grade
         })
     return subjects
 
+# ---------------- SGPA CALCULATION ----------------
 
 def calculate_sgpa(subjects):
-    total_points = total_credits = 0
+    total_points = 0
+    total_credits = 0
+
     for s in subjects:
+        # 🔥 Ignore credit = 0 subjects
+        if s["credit"] == 0:
+            continue
+
         gp = GRADE_POINTS.get(s["grade"], 0)
         total_points += gp * s["credit"]
         total_credits += s["credit"]
-    return (round(total_points / total_credits, 2), total_credits) if total_credits else (0, 0)
 
-# ---------- CERTIFICATE GENERATION ----------
+    sgpa = round(total_points / total_credits, 2) if total_credits else 0
+    return sgpa, total_credits, total_points
+
+# ---------------- CERTIFICATE PDF ----------------
 
 def generate_certificate(data):
     output = "CGPA_Certificate.pdf"
@@ -97,7 +123,6 @@ def generate_certificate(data):
         fontSize=18,
         spaceAfter=20
     ))
-
     styles.add(ParagraphStyle(
         name="CenterBig",
         alignment=TA_CENTER,
@@ -107,15 +132,13 @@ def generate_certificate(data):
 
     elements = []
 
-    # ---- HEADER ----
+    # Header
     elements.append(Paragraph("CGPA CERTIFICATE", styles["CenterTitle"]))
-    elements.append(Spacer(1, 12))
-
     elements.append(Paragraph(f"<b>Name:</b> {data['name']}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Register No:</b> {data['reg']}", styles["Normal"]))
     elements.append(Spacer(1, 18))
 
-    # ---- SEMESTER DETAILS ----
+    # Semester tables
     for sem in data["semesters"]:
         elements.append(
             Paragraph(
@@ -139,9 +162,8 @@ def generate_certificate(data):
         elements.append(table)
         elements.append(Spacer(1, 16))
 
-    # ---- FINAL CERTIFICATION TEXT (YOUR EXACT REQUIREMENT) ----
+    # Final certification text
     elements.append(Spacer(1, 20))
-
     elements.append(Paragraph("This is to certify that", styles["CenterBig"]))
     elements.append(Paragraph(f"<b>{data['name']}</b>", styles["CenterBig"]))
     elements.append(Paragraph(
@@ -149,7 +171,6 @@ def generate_certificate(data):
         styles["CenterBig"]
     ))
     elements.append(Spacer(1, 12))
-
     elements.append(Paragraph(
         f"has completed {len(data['semesters'])} semesters",
         styles["CenterBig"]
@@ -159,53 +180,54 @@ def generate_certificate(data):
         styles["CenterBig"]
     ))
     elements.append(Spacer(1, 10))
-
-    elements.append(
-        Paragraph(
-            f"<b>{data['cgpa']}</b>",
-            styles["CenterTitle"]
-        )
-    )
+    elements.append(Paragraph(f"<b>{data['cgpa']}</b>", styles["CenterTitle"]))
 
     doc.build(elements)
     return output
 
-# ---------- ROUTES ----------
+# ---------------- ROUTES ----------------
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-
 @app.route("/generate", methods=["POST"])
 def generate():
     files = request.files.getlist("pdfs")
 
-    semesters = []
-    total_points = total_credits = 0
+    semester_map = {}
     student_name = "Student Name"
     reg_no = "Register No"
 
-    for i, f in enumerate(files, start=1):
+    for f in files:
         path = os.path.join(UPLOAD_FOLDER, f.filename)
         f.save(path)
 
         text = extract_text(path)
         student_name, reg_no = extract_student_details(text)
+        semester = extract_semester(text)
+
+        if semester is None:
+            continue
 
         subjects = extract_subjects(text)
-        sgpa, credits = calculate_sgpa(subjects)
+        sgpa, credits, points = calculate_sgpa(subjects)
 
-        semesters.append({
-            "no": i,
+        semester_map[semester] = {
+            "no": semester,
             "sgpa": sgpa,
-            "subjects": subjects
-        })
+            "subjects": subjects,
+            "credits": credits,
+            "points": points
+        }
 
-        total_points += sgpa * credits
-        total_credits += credits
+    # Sort semesters
+    semesters = sorted(semester_map.values(), key=lambda x: x["no"])
 
-    cgpa = round(total_points / total_credits, 2) if total_credits else 0
+    # 🔥 TRUE OG CGPA (subject-level weighted)
+    grand_points = sum(s["points"] for s in semesters)
+    grand_credits = sum(s["credits"] for s in semesters)
+    cgpa = round(grand_points / grand_credits, 2) if grand_credits else 0
 
     pdf_path = generate_certificate({
         "name": student_name,
@@ -220,7 +242,6 @@ def generate():
         download_name="CGPA_Certificate.pdf",
         mimetype="application/pdf"
     )
-
 
 if __name__ == "__main__":
     app.run()
