@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CGPA Certificate Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #eef2f7, #f8fafc);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: #ffffff;
+      width: 100%;
+      max-width: 520px;
+      border-radius: 14px;
+      padding: 32px 36px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+    }
+
+    .title {
+      text-align: center;
+      margin-bottom: 8px;
+      font-size: 26px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 22px;
+      text-align: center;
+      background: #f9fbfd;
+    }
+
+    .card p {
+      margin: 0 0 14px;
+      font-size: 14px;
+      color: #374151;
+    }
+
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .note {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    button:hover {
+      background: #1e40af;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 18px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 26px 22px;
+      }
+
+      .title {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="title">CGPA Certificate Generator</div>
+    <div class="subtitle">
+      Upload semester-wise result PDFs to generate a professional CGPA certificate
+    </div>
+
+    <form action="/generate" method="post" enctype="multipart/form-data">
+      <div class="card">
+        <p><strong>Select Semester Result PDFs</strong></p>
+        <input type="file" name="pdfs" multiple required />
+        <div class="note">
+          Supported format: University result PDF (text-based)
+        </div>
+      </div>
+
+      <button type="submit">
+        Generate CGPA Certificate
+      </button>
+    </form>
+
+    <footer>
+      Secure academic document generation
+    </footer>
+  </div>
+
+</body>
+</html>
